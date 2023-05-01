@@ -1,0 +1,4 @@
+*.o
+.idea/
+n_queens
+
