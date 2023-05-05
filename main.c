@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
 
     int finalNumSolutions = 0;
     if (worldSize < n) {
-        for (int i = 0; i < worldSize % n; i++) {
+        for (int i = 0; i <= n / worldSize; i++) {
             MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
             MPI_Barrier(MPI_COMM_WORLD);
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
 
     if (worldRank == 0) {
         printf("Soluções para %d damas\n", n);
-        printf("Usando %d threads\t e %d proceessos\n", t, worldSize);
+        printf("Usando %d threads\te %d processos\n", t, worldSize);
         printf("Número de soluções encontradas: %d\n", finalNumSolutions);
         printf("Tempo: %f\n", end - start);
     }
