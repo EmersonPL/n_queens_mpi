@@ -10,7 +10,7 @@
 
 int numSolutions = 0;
 
-void firstQueen(int rank, int n, int t);
+void firstQueen(int rank, int n, int t, int offset);
 void placeQueen(int placedQueens[], int currCol, int insertRow, int size);
 
 /*
@@ -28,19 +28,31 @@ int main(int argc, char *argv[]) {
 
     printf("Valor de N: %d\n", n);
 
-    MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    int finalNumSolutions = 0;
+    if (worldSize < n) {
+        for (int i = 0; i < worldSize % n; i++) {
+            MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier(MPI_COMM_WORLD);
 
-    firstQueen(worldRank, n, t);
+            firstQueen(worldRank, n, t, worldSize * i);
 
-    int a = 0;
-    MPI_Reduce(&numSolutions, &a, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+            MPI_Reduce(&numSolutions, &finalNumSolutions, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+        }
+    } else {
+        MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        firstQueen(worldRank, n, t, 0);
+
+        MPI_Reduce(&numSolutions, &finalNumSolutions, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
 
     if (worldRank == 0) {
 
         printf("Numero de soluções encontradas: %d\n", numSolutions);
-        printf("o outro Numero de soluções encontradas: %d\n", a);
+        printf("o outro Numero de soluções encontradas: %d\n", finalNumSolutions);
     }
 
     MPI_Finalize();
@@ -48,9 +60,14 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void firstQueen(int rank, int n, int t) {
+void firstQueen(int rank, int n, int t, int offset) {
     int *placedQueens = (int *) malloc(n * 1);
-    placedQueens[0] = rank;
+
+    // If we have more processes than Queens (or it's not the first pass), just
+    //  search the solution in the ranks that will stay lower than n
+    if (rank + offset >= n) return;
+
+    placedQueens[0] = rank + offset;
 
     printf("Começando o posicionamento no rank: %d\n", rank);
 
@@ -64,7 +81,7 @@ void firstQueen(int rank, int n, int t) {
 
 void placeQueen(int pastQueens[], int currCol, int insertRow, int size) {
     int * placedQueens = intdump(pastQueens, currCol + 1);
-    
+
     if (!isValidPlacement(placedQueens, currCol, insertRow)) {
         free(placedQueens);
         return;
