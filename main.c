@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <stdbool.h>
 
 #include <omp.h>
@@ -9,6 +8,7 @@
 #include "utils.h"
 
 int numSolutions = 0;
+int printSolutions = 0;
 
 void firstQueen(int rank, int n, int t, int offset);
 void placeQueen(int placedQueens[], int currCol, int insertRow, int size);
@@ -18,7 +18,10 @@ void placeQueen(int placedQueens[], int currCol, int insertRow, int size);
  */
 int main(int argc, char *argv[]) {
     int n = argc > 1 ? atoi(argv[1]) : 8;
-    int t = argc > 3 ? atoi(argv[3]) : 8;
+    int t = argc > 2 ? atoi(argv[2]) : 8;
+    printSolutions = argc > 3 ? atoi(argv[3]) : 0;
+
+
     omp_set_num_threads(t);
 
     int worldSize, worldRank;
@@ -26,7 +29,7 @@ int main(int argc, char *argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
     MPI_Comm_rank(MPI_COMM_WORLD, &worldRank);
 
-    printf("Valor de N: %d\n", n);
+    double start = MPI_Wtime();
 
     int finalNumSolutions = 0;
     if (worldSize < n) {
@@ -49,10 +52,13 @@ int main(int argc, char *argv[]) {
         MPI_Reduce(&numSolutions, &finalNumSolutions, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     }
 
-    if (worldRank == 0) {
+    double end = MPI_Wtime();
 
-        printf("Numero de soluções encontradas: %d\n", numSolutions);
-        printf("o outro Numero de soluções encontradas: %d\n", finalNumSolutions);
+    if (worldRank == 0) {
+        printf("Soluções para %d damas\n", n);
+        printf("Usando %d threads\t e %d proceessos\n", t, worldSize);
+        printf("Número de soluções encontradas: %d\n", finalNumSolutions);
+        printf("Tempo: %f\n", end - start);
     }
 
     MPI_Finalize();
@@ -68,8 +74,6 @@ void firstQueen(int rank, int n, int t, int offset) {
     if (rank + offset >= n) return;
 
     placedQueens[0] = rank + offset;
-
-    printf("Começando o posicionamento no rank: %d\n", rank);
 
     #pragma omp parallel for
         for (int i = 0; i < n; i++) {
@@ -90,9 +94,11 @@ void placeQueen(int pastQueens[], int currCol, int insertRow, int size) {
     placedQueens[currCol] = insertRow;
 
     if (currCol == size - 1) {
-        printf("O rank %d encontrou uma solução.\n", placedQueens[0]);
-        printSolution(placedQueens, size);
-        printf("\n\n");
+        if (printSolutions) {
+            printf("O rank %d encontrou uma solução.\n", placedQueens[0]);
+            printSolution(placedQueens, size);
+            printf("\n\n");
+        }
 
         #pragma omp atomic
         numSolutions++;
