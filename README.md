@@ -8,3 +8,9 @@ Para compilar, basta usar o comando
 ```
 make all
 ```
+
+## Execução
+Para executar: 
+```
+mpirun -n <NUM_PROCESSOS> n_queens <N> <NUM_THREADS>
+```
