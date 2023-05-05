@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 bool isValidPlacement(int placedQueens[], int currCol, int rowToInsert) {
     for (int i = 0; i < currCol; i++) {
@@ -46,3 +47,11 @@ void printSolution(int finalSolution[], int n) {
         printf("\n");
     }
 }
+
+int *intdump(int const *src, size_t len)
+{
+    int *p = malloc(len * sizeof(int));
+    memcpy(p, src, len * sizeof(int));
+    return p;
+}
+

@@ -9,3 +9,4 @@ bool isValidPlacement(int placedQueens[], int currCol, int rowToInsert);
 bool isValidSolution(int queensPlacement[], int n);
 
 void printSolution(int finalSolution[], int n);
+int *intdump(int const *src, size_t len);

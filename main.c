@@ -8,9 +8,10 @@
 
 #include "utils.h"
 
-bool solutionFound;
+int numSolutions = 0;
 
-bool placeQueen(int placedQueens[], int currCol, int insertRow, int size);
+void firstQueen(int rank, int n, int t);
+void placeQueen(int placedQueens[], int currCol, int insertRow, int size);
 
 /*
  * Params
@@ -25,46 +26,67 @@ int main(int argc, char *argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
     MPI_Comm_rank(MPI_COMM_WORLD, &worldRank);
 
-    int *placedQueens = (int *) malloc(n * sizeof(int));
-    printf("My rank: %d;\tComm size: %d\n", worldRank, worldSize);
-//    #pragma omp parallel for shared(solutionFound, n, finalSolution) default(none)
+    printf("Valor de N: %d\n", n);
+
+    MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    firstQueen(worldRank, n, t);
+
+    int a = 0;
+    MPI_Reduce(&numSolutions, &a, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+
     if (worldRank == 0) {
-        for (int i = 0; i < n; i++) {
-            // each node should run the search for a given starting position
-            placedQueens[0] = i;
 
-            int dest = i % (worldSize - 1) + 1;
-            printf("dest: %d\n", dest);
-            MPI_Send(placedQueens, 1, MPI_INT, dest, 0, MPI_COMM_WORLD);
-        }
-    } else {
-        MPI_Recv(placedQueens, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-        printf("Process %d received value %d from process 0\n", worldRank, placedQueens[0]);
+        printf("Numero de soluções encontradas: %d\n", numSolutions);
+        printf("o outro Numero de soluções encontradas: %d\n", a);
     }
-
-//    printSolution(finalSolution, n);
 
     MPI_Finalize();
 
     return 0;
 }
 
-bool placeQueen(int placedQueens[], int currCol, int insertRow, int size) {
-    if (solutionFound) return true;
-    if (!isValidPlacement(placedQueens, currCol, insertRow)) return false;
+void firstQueen(int rank, int n, int t) {
+    int *placedQueens = (int *) malloc(n * 1);
+    placedQueens[0] = rank;
+
+    printf("Começando o posicionamento no rank: %d\n", rank);
+
+    #pragma omp parallel for
+        for (int i = 0; i < n; i++) {
+            placeQueen(placedQueens, 1, i, n);
+        }
+
+    free(placedQueens);
+}
+
+void placeQueen(int pastQueens[], int currCol, int insertRow, int size) {
+    int * placedQueens = intdump(pastQueens, currCol + 1);
+    
+    if (!isValidPlacement(placedQueens, currCol, insertRow)) {
+        free(placedQueens);
+        return;
+    }
 
     placedQueens[currCol] = insertRow;
 
     if (currCol == size - 1) {
-        solutionFound = true;
-        return true;
+        printf("O rank %d encontrou uma solução.\n", placedQueens[0]);
+        printSolution(placedQueens, size);
+        printf("\n\n");
+
+        #pragma omp atomic
+        numSolutions++;
+
+        free(placedQueens);
+        return;
     }
 
     for (int i = 0; i < size; i++) {
-        // try all positions for the next column, until one of them leads to a solution
-        if (placeQueen(placedQueens, currCol + 1, i, size)) return true;
+        placeQueen(placedQueens, currCol + 1, i, size);
     }
 
-    return false;
+    free(placedQueens);
 }
